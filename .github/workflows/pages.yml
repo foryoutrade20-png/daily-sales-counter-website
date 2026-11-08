@@ -25,6 +25,26 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
+      - name: Configure Supabase client
+        env:
+          SUPABASE_URL: ${{ vars.DAILY_SALES_SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.DAILY_SALES_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const url = process.env.SUPABASE_URL;
+            const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+            if (!url || !/^https:\/\/[^/]+$/.test(url)) {
+              throw new Error("Set the DAILY_SALES_SUPABASE_URL repository variable.");
+            }
+            if (!key || !key.startsWith("sb_publishable_")) {
+              throw new Error("Set DAILY_SALES_SUPABASE_PUBLISHABLE_KEY to the Supabase publishable key.");
+            }
+            fs.writeFileSync(
+              "config.js",
+              `window.DAILY_SALES_COUNTER_CONFIG = ${JSON.stringify({ supabaseUrl: url, supabaseAnonKey: key })};\n`,
+            );
+          '
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .

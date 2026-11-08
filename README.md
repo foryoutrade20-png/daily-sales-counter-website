@@ -4,10 +4,11 @@ This is a separate copy of the supplied counter app. It keeps the original sales
 
 ## Cloud sync setup
 
-1. In `config.js`, set the Supabase project URL and **publishable/anon key**. These are browser-visible values; never put a `service_role` key in this app.
-2. In the Supabase SQL Editor for that project, run `schema.sql`. It creates a separate table for this counter and restricts each signed-in account to its own data.
-3. In Supabase Auth URL settings, set the published site as the Site URL and allow its URL as a redirect. Keep email sign-in enabled.
-4. Host this folder over HTTPS as its own site. On each device, sign in with the same email address. Supabase sends a one-time sign-in link.
+1. In the Supabase project for this counter, run `schema.sql` in the SQL Editor. It creates a separate table and restricts each signed-in account to its own data.
+2. In the GitHub repository's **Settings → Secrets and variables → Actions**, add the repository variable `DAILY_SALES_SUPABASE_URL` with the project URL (for this project: `https://vnywethlofoeyytdhdxc.supabase.co`) and the repository secret `DAILY_SALES_SUPABASE_PUBLISHABLE_KEY` with the **Publishable key** from Supabase Settings → API Keys. Do not use the Supabase secret/service-role key.
+3. Re-run the **Publish Daily Sales Counter** workflow from the repository's Actions tab. It writes the config only into the deployment artifact; the key is not committed to the source repository. A publishable key is visible to website visitors by design, so the table's row-level security is essential.
+4. In Supabase Auth URL settings, enable email sign-in, set the Site URL to `https://foryoutrade20-png.github.io/daily-sales-counter-website/`, and allow that URL as a redirect.
+5. On each device, sign in with the same email address. Supabase sends a one-time sign-in link.
 
 If cloud sync is not configured, choose **Sirf is device par use karein**. That mode uses the original browser storage and does not share data across devices.
 
