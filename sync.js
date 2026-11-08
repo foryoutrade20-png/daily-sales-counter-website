@@ -147,6 +147,7 @@ function emptyCounter() {
 
 let client;
 let currentUser;
+let cloudLoadUserId;
 let cloudVersion;
 let ready = false;
 let applyingRemote = false;
@@ -341,6 +342,30 @@ function showSetup() {
   gate.querySelector("#local-only").addEventListener("click", () => showApp("local", "Sirf is device par — sync off"));
 }
 
+function showLogin() {
+  showGate(`<h1>Sign in karein</h1><p>Apne phone aur laptop par ek hi email se sign in karein; hisaab cloud mein sync rahega.</p><form id="counter-login"><label for="counter-email">Email address</label><input id="counter-email" type="email" autocomplete="email" required placeholder="you@example.com"><div class="counter-gate-actions"><button class="primary" type="submit">Email sign-in link bhejein</button><button type="button" id="local-only">Sirf is device par use karein</button></div></form><p class="counter-gate-message"></p>`);
+  bindLogin();
+}
+
+async function activateUser(user) {
+  if (cloudLoadUserId === user.id || (currentUser?.id === user.id && ready)) return;
+  currentUser = user;
+  cloudLoadUserId = user.id;
+  ready = false;
+  showGate("<h1>Cloud hisaab load ho raha hai…</h1><p>Thoda intezar karein.</p>");
+  try {
+    await loadCloudData();
+  } catch (error) {
+    if (currentUser?.id !== user.id) return;
+    showGate("<h1>Cloud data load nahi hua</h1><p id=\"counter-error\"></p><p class=\"counter-gate-note\">Supabase mein <code>daily-sales-counter/schema.sql</code> chalane ke baad dobara try karein.</p><div class=\"counter-gate-actions\"><button id=\"retry-cloud\">Dobara try karein</button><button id=\"local-only\">Sirf is device par use karein</button></div>");
+    gate.querySelector("#counter-error").textContent = error.message;
+    gate.querySelector("#retry-cloud").addEventListener("click", () => activateUser(user));
+    gate.querySelector("#local-only").addEventListener("click", () => showApp("local", "Sirf is device par — sync off"));
+  } finally {
+    if (cloudLoadUserId === user.id) cloudLoadUserId = null;
+  }
+}
+
 async function start() {
   if (!bridge || !root) {
     showGate("<h1>App load nahi hua</h1><p>Counter page ko dobara khol kar dekhein.</p>");
@@ -361,6 +386,15 @@ async function start() {
     return;
   }
 
+  client.auth.onAuthStateChange((event, session) => {
+    if (event === "SIGNED_IN" && session?.user) {
+      const signedInUser = session.user;
+      setTimeout(() => {
+        void activateUser(signedInUser);
+      }, 0);
+    }
+  });
+
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
   if (sessionError) {
     showGate("<h1>Sign in check nahi hua</h1><p id=\"counter-error\"></p>");
@@ -369,20 +403,11 @@ async function start() {
   }
   currentUser = sessionData.session?.user || null;
   if (!currentUser) {
-    showGate(`<h1>Sign in karein</h1><p>Apne phone aur laptop par ek hi email se sign in karein; hisaab cloud mein sync rahega.</p><form id="counter-login"><label for="counter-email">Email address</label><input id="counter-email" type="email" autocomplete="email" required placeholder="you@example.com"><div class="counter-gate-actions"><button class="primary" type="submit">Email sign-in link bhejein</button><button type="button" id="local-only">Sirf is device par use karein</button></div></form><p class="counter-gate-message"></p>`);
-    bindLogin();
+    showLogin();
     return;
   }
 
-  showGate("<h1>Cloud hisaab load ho raha hai…</h1><p>Thoda intezar karein.</p>");
-  try {
-    await loadCloudData();
-  } catch (error) {
-    showGate("<h1>Cloud data load nahi hua</h1><p id=\"counter-error\"></p><p class=\"counter-gate-note\">Supabase mein <code>daily-sales-counter/schema.sql</code> chalane ke baad dobara try karein.</p><div class=\"counter-gate-actions\"><button id=\"retry-cloud\">Dobara try karein</button><button id=\"local-only\">Sirf is device par use karein</button></div>");
-    gate.querySelector("#counter-error").textContent = error.message;
-    gate.querySelector("#retry-cloud").addEventListener("click", start);
-    gate.querySelector("#local-only").addEventListener("click", () => showApp("local", "Sirf is device par — sync off"));
-  }
+  await activateUser(currentUser);
 }
 
 if (bridge) {
