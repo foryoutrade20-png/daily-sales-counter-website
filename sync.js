@@ -342,8 +342,9 @@ function showSetup() {
   gate.querySelector("#local-only").addEventListener("click", () => showApp("local", "Sirf is device par — sync off"));
 }
 
-function showLogin() {
+function showLogin(message = "") {
   showGate(`<h1>Sign in karein</h1><p>Apne phone aur laptop par ek hi email se sign in karein; hisaab cloud mein sync rahega.</p><form id="counter-login"><label for="counter-email">Email address</label><input id="counter-email" type="email" autocomplete="email" required placeholder="you@example.com"><div class="counter-gate-actions"><button class="primary" type="submit">Email sign-in link bhejein</button><button type="button" id="local-only">Sirf is device par use karein</button></div></form><p class="counter-gate-message"></p>`);
+  setMessage(message);
   bindLogin();
 }
 
@@ -376,6 +377,12 @@ async function start() {
     return;
   }
 
+  const callbackParams = new URLSearchParams(window.location.hash.slice(1));
+  const callbackError = callbackParams.get("error_code") === "otp_expired" ||
+    callbackParams.get("error") === "access_denied"
+    ? "Yeh email link expire ho gaya ya pehle use ho chuka hai. Naya link mangayein aur email aate hi use kholein."
+    : "";
+
   try {
     client = createClient(config.supabaseUrl, config.supabaseAnonKey, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
@@ -403,7 +410,10 @@ async function start() {
   }
   currentUser = sessionData.session?.user || null;
   if (!currentUser) {
-    showLogin();
+    if (callbackError) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+    showLogin(callbackError);
     return;
   }
 
